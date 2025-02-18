@@ -77,8 +77,8 @@ const Grid: React.FC<GridProps> = ({ size, cellSize, onCellHover, onCellClick })
                   }
                 }}
               >
-                <sphereGeometry args={[cellSize * 0.1]} />
-                <meshBasicMaterial color="#999" transparent opacity={0.3} />
+                <sphereGeometry args={[cellSize * 0.06]} />
+                <meshBasicMaterial color="#333333" />
               </mesh>
             )
           })

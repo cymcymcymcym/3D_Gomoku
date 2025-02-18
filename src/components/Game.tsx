@@ -16,7 +16,7 @@ interface GameProps {
   onWin: (winner: 'black' | 'white') => void
 }
 
-const GRID_SIZE = 5
+const GRID_SIZE = 7
 const CELL_SIZE = 1.5
 
 const Game: React.FC<GameProps> = ({ currentPlayer, onPlayerChange, winner, onWin }) => {
