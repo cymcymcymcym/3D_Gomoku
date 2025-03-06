@@ -1,4 +1,5 @@
 import { Vector3 } from 'three'
+import { ThreeEvent } from '@react-three/fiber'
 import { Position } from './Game'
 
 interface GridProps {
@@ -28,28 +29,14 @@ const Grid: React.FC<GridProps> = ({ size, cellSize, onCellHover, onCellClick })
            pos.z >= 0 && pos.z < size;
   };
 
+  // Helper to determine point color based on position
+  const getPointColor = (x: number, y: number, z: number): string => {
+    // Sum of coordinates determines color - if sum is even, one color, if odd, another color
+    return ((x + y + z) % 2 === 0) ? "#2a4d69" : "#4b86b4";
+  };
+
   return (
     <group>
-      {/* Semi-transparent grid planes */}
-      <group position={[0, 0, -offset * cellSize]}>
-        <mesh>
-          <planeGeometry args={[totalSize, totalSize]} />
-          <meshBasicMaterial color="#e0e0e0" transparent opacity={0.2} side={2} />
-        </mesh>
-      </group>
-      <group position={[-offset * cellSize, 0, 0]} rotation={[0, Math.PI / 2, 0]}>
-        <mesh>
-          <planeGeometry args={[totalSize, totalSize]} />
-          <meshBasicMaterial color="#e0e0e0" transparent opacity={0.2} side={2} />
-        </mesh>
-      </group>
-      <group position={[0, -offset * cellSize, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <mesh>
-          <planeGeometry args={[totalSize, totalSize]} />
-          <meshBasicMaterial color="#e0e0e0" transparent opacity={0.2} side={2} />
-        </mesh>
-      </group>
-
       {/* Grid intersection points */}
       {Array.from({ length: size }).map((_, x) =>
         Array.from({ length: size }).map((_, y) =>
@@ -62,14 +49,14 @@ const Grid: React.FC<GridProps> = ({ size, cellSize, onCellHover, onCellClick })
               <mesh
                 key={`${x}-${y}-${z}`}
                 position={[worldX, worldY, worldZ]}
-                onPointerMove={(e) => {
+                onPointerMove={(e: ThreeEvent<PointerEvent>) => {
                   e.stopPropagation();
                   const pos = worldToGridPosition(worldX, worldY, worldZ);
                   if (isValidPosition(pos)) {
                     onCellHover(pos);
                   }
                 }}
-                onClick={(e) => {
+                onClick={(e: ThreeEvent<MouseEvent>) => {
                   e.stopPropagation();
                   const pos = worldToGridPosition(worldX, worldY, worldZ);
                   if (isValidPosition(pos)) {
@@ -78,7 +65,7 @@ const Grid: React.FC<GridProps> = ({ size, cellSize, onCellHover, onCellClick })
                 }}
               >
                 <sphereGeometry args={[cellSize * 0.06]} />
-                <meshBasicMaterial color="#333333" />
+                <meshBasicMaterial color={getPointColor(x, y, z)} />
               </mesh>
             )
           })
@@ -98,7 +85,7 @@ const Grid: React.FC<GridProps> = ({ size, cellSize, onCellHover, onCellClick })
                   new Vector3(pos, (size - 1 - offset) * cellSize, -offset * cellSize)
                 ]
               }} />
-              <lineBasicMaterial attach="material" color="#666666" />
+              <lineBasicMaterial attach="material" color="#555555" />
             </line>
             {/* Y lines */}
             <line>
@@ -108,7 +95,7 @@ const Grid: React.FC<GridProps> = ({ size, cellSize, onCellHover, onCellClick })
                   new Vector3((size - 1 - offset) * cellSize, pos, -offset * cellSize)
                 ]
               }} />
-              <lineBasicMaterial attach="material" color="#666666" />
+              <lineBasicMaterial attach="material" color="#555555" />
             </line>
             {/* Z lines */}
             <line>
@@ -118,7 +105,7 @@ const Grid: React.FC<GridProps> = ({ size, cellSize, onCellHover, onCellClick })
                   new Vector3(-offset * cellSize, (size - 1 - offset) * cellSize, pos)
                 ]
               }} />
-              <lineBasicMaterial attach="material" color="#666666" />
+              <lineBasicMaterial attach="material" color="#555555" />
             </line>
           </group>
         );
