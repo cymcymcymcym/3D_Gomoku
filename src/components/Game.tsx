@@ -1,7 +1,8 @@
-import { useRef, useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Vector3 } from 'three'
 import Grid from './Grid'
 import GamePiece from './GamePiece'
+import HoverIndicator from './HoverIndicator'
 
 interface Position {
   x: number
@@ -21,7 +22,7 @@ const CELL_SIZE = 1.5
 
 const Game: React.FC<GameProps> = ({ currentPlayer, onPlayerChange, winner, onWin }) => {
   const [pieces, setPieces] = useState<{ position: Position; color: 'black' | 'white' }[]>([])
-  const hoverPosition = useRef<Position | null>(null)
+  const [hoverPosition, setHoverPosition] = useState<Position | null>(null)
 
   useEffect(() => {
     if (winner === null) {
@@ -132,11 +133,26 @@ const Game: React.FC<GameProps> = ({ currentPlayer, onPlayerChange, winner, onWi
         cellSize={CELL_SIZE} 
         onCellHover={(pos) => { 
           if (isValidPosition(pos)) {
-            hoverPosition.current = pos;
+            setHoverPosition(pos)
           }
         }}
         onCellClick={handlePlacePiece}
       />
+      {/* Show the hover indicator */}
+      {hoverPosition && !winner && !pieces.some(p => 
+        p.position.x === hoverPosition.x && 
+        p.position.y === hoverPosition.y && 
+        p.position.z === hoverPosition.z
+      ) && (
+        <HoverIndicator
+          position={new Vector3(
+            (hoverPosition.x - (GRID_SIZE - 1) / 2) * CELL_SIZE,
+            (hoverPosition.y - (GRID_SIZE - 1) / 2) * CELL_SIZE,
+            (hoverPosition.z - (GRID_SIZE - 1) / 2) * CELL_SIZE
+          )}
+          color={currentPlayer}
+        />
+      )}
       {pieces.map((piece, index) => (
         <GamePiece
           key={index}
