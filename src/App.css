@@ -104,6 +104,17 @@ body {
   background: rgba(255, 255, 255, 0.9);
 }
 
+.draw-text {
+  color: #3498db;
+  font-weight: 600;
+  font-size: 1.2rem;
+  animation: winnerAnnounce 0.5s ease-out forwards;
+  text-shadow: 0 0 10px rgba(52, 152, 219, 0.3);
+  padding: 4px 12px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
 @keyframes winnerAnnounce {
   0% {
     opacity: 0;
@@ -162,4 +173,39 @@ canvas {
   width: 100% !important;
   height: 100% !important;
   touch-action: none;
+}
+
+.mode-selector {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  justify-content: center;
+}
+
+.mode-selector button {
+  background: rgba(255, 255, 255, 0.8);
+  color: #2c3e50;
+  border: 2px solid transparent;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mode-selector button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.mode-selector button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.95);
+  transform: translateY(-1px);
+}
+
+.mode-selector button.active {
+  border-color: #3498db;
+  background: #fff;
+  font-weight: 600;
 }
