@@ -2,16 +2,22 @@ import { Canvas } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import { useState } from 'react'
 import './App.css'
-import Game from './components/Game'
+import Game from './Game'
 
 function App() {
   const [currentPlayer, setCurrentPlayer] = useState<'black' | 'white'>('black')
   const [winner, setWinner] = useState<'black' | 'white' | null>(null)
+  const [isDraw, setIsDraw] = useState(false)
   const [showGuides, setShowGuides] = useState(false)
 
   const handleReset = () => {
     setWinner(null);
+    setIsDraw(false);
     setCurrentPlayer('black');
+  };
+
+  const handleDraw = () => {
+    setIsDraw(true);
   };
 
   return (
@@ -65,6 +71,8 @@ function App() {
           winner={winner}
           onWin={setWinner}
           showGuides={showGuides}
+          onDraw={handleDraw}
+          isDraw={isDraw}
         />
         <OrbitControls
           enableZoom={true}

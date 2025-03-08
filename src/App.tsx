@@ -1,8 +1,17 @@
-import { Canvas } from '@react-three/fiber'
+import { Canvas, ThreeElements } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import { useState } from 'react'
+import * as THREE from 'three'
 import './App.css'
 import Game from './components/Game'
+
+declare module '@react-three/fiber' {
+  interface ThreeElements {
+    color: { attach: string; args: [THREE.ColorRepresentation] };
+    ambientLight: { intensity?: number };
+    directionalLight: { position?: [number, number, number]; intensity?: number };
+  }
+}
 
 function App() {
   const [currentPlayer, setCurrentPlayer] = useState<'black' | 'white'>('black')
@@ -10,14 +19,18 @@ function App() {
   const [isDraw, setIsDraw] = useState(false)
   const [gameMode, setGameMode] = useState<'human' | 'ai'>('human')
   const [moveCount, setMoveCount] = useState(0)
-  const [resetKey, setResetKey] = useState(0) // Add resetKey state to trigger board reset
+  const [resetKey, setResetKey] = useState(0)
+  const [isAIThinking, setIsAIThinking] = useState(false)
+  const [aiError, setAIError] = useState<string | null>(null)
 
   const handleReset = () => {
     setWinner(null);
     setIsDraw(false);
     setCurrentPlayer('black');
     setMoveCount(0);
-    setResetKey(prevKey => prevKey + 1); // Increment resetKey to force Game component to reset
+    setResetKey(prevKey => prevKey + 1);
+    setIsAIThinking(false);
+    setAIError(null);
   }
 
   const canSwitchMode = winner !== null || isDraw || moveCount === 0;
@@ -46,7 +59,7 @@ function App() {
             className={gameMode === 'human' ? 'active' : ''}
             onClick={() => handleGameModeChange('human')}
             disabled={!canSwitchMode}
-            title={!canSwitchMode ? "Finish current game or start new game to switch modes" : ""}
+            title={!canSwitchMode ? "Finish current game to switch modes" : ""}
           >
             Player vs Player
           </button>
@@ -54,7 +67,7 @@ function App() {
             className={gameMode === 'ai' ? 'active' : ''}
             onClick={() => handleGameModeChange('ai')}
             disabled={!canSwitchMode}
-            title={!canSwitchMode ? "Finish current game or start new game to switch modes" : ""}
+            title={!canSwitchMode ? "Finish current game to switch modes" : ""}
           >
             Player vs AI
           </button>
@@ -80,15 +93,14 @@ function App() {
             <>
               Current Player: {currentPlayer === 'black' ? '⚫' : '⚪'}
               {gameMode === 'ai' && currentPlayer === 'white' && ' (AI)'}
-              {moveCount > 0 && (
-                <button className="reset-button" onClick={handleReset}>
-                  New Game
-                </button>
-              )}
+              <button className="reset-button" onClick={handleReset}>
+                New Game
+              </button>
             </>
           )}
         </div>
       </div>
+      
       <Canvas 
         style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%' }}
         camera={{ position: [10, 8, 10], fov: 50 }}
@@ -105,7 +117,10 @@ function App() {
           isDraw={isDraw}
           gameMode={gameMode}
           onPiecePlace={handlePiecePlace}
-          resetKey={resetKey} // Pass resetKey to Game component
+          resetKey={resetKey}
+          isAIThinking={isAIThinking}
+          setIsAIThinking={setIsAIThinking}
+          onAIError={setAIError}
         />
         <OrbitControls 
           enableZoom={true} 
@@ -115,6 +130,23 @@ function App() {
           makeDefault
         />
       </Canvas>
+
+      {(isAIThinking || aiError) && (
+        <div className="ai-status-overlay">
+          <div>{aiError ? `AI error: ${aiError}` : 'AI is thinking...'}</div>
+          {aiError && (
+            <button
+              className="retry-button"
+              onClick={() => {
+                setAIError(null);
+                setIsAIThinking(false);
+              }}
+            >
+              Try Again
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }

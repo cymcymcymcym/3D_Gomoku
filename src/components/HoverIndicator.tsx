@@ -1,6 +1,5 @@
 import React from 'react'
 import { Vector3 } from 'three'
-import { ThreeElements } from '@react-three/fiber'
 
 interface HoverIndicatorProps {
   position: Vector3 | null
@@ -11,8 +10,11 @@ const HoverIndicator: React.FC<HoverIndicatorProps> = ({ position, color }) => {
   if (!position) return null;
   
   return (
+    // @ts-ignore
     <mesh position={position}>
+      {/* @ts-ignore */}
       <sphereGeometry args={[0.4]} />
+      {/* @ts-ignore */}
       <meshStandardMaterial
         color={color === 'black' ? '#000000' : '#ffffff'}
         transparent

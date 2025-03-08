@@ -209,3 +209,48 @@ canvas {
   background: #fff;
   font-weight: 600;
 }
+
+.ai-status-overlay {
+  position: fixed;
+  top: 100px; /* Below the game info */
+  right: 20px;
+  transform: none;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  animation: slideIn 0.3s ease-out;
+  color: #000; /* Black text color */
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.retry-button {
+  padding: 5px 10px;
+  background: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.retry-button:hover {
+  background: #2980b9;
+  transform: translateY(-1px);
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
