@@ -14,9 +14,14 @@
   "dependencies": {
     "@react-three/drei": "^9.121.5",
     "@react-three/fiber": "^8.17.14",
+    "@tensorflow/tfjs": "3.18.0",
+    "@tensorflow/tfjs-backend-webgl": "3.18.0",
+    "@tensorflow/tfjs-converter": "3.18.0",
+    "@tensorflow/tfjs-node": "^3.18.0",
     "@types/three": "^0.173.0",
     "cors": "^2.8.5",
     "express": "^4.21.2",
+    "node-fetch": "^3.3.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "three": "^0.173.0"

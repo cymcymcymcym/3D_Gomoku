@@ -41,7 +41,7 @@ class Human:
 def run():
     n = 4  # Number in a row to win
     width, height, depth = 4, 4, 4  # 3D board size
-    model_file = './policy_3d_iter_125.weights.h5'  # Model file for 3D
+    model_file = './policy_3d_iter_100_2nd.weights.h5'  # Model file for 3D
     
     try:
         # Initialize board and game
@@ -63,7 +63,7 @@ def run():
         # Create the AI player
         mcts_player = MCTSPlayer(
             best_policy.policy_value_fn,
-            c_puct=5,
+            c_puct=4,
             n_playout=400,  # Higher playouts for better performance
             is_selfplay=0  # Make sure this is 0 for human play
         )

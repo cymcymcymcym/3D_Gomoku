@@ -3,12 +3,7 @@ import { Vector3 } from 'three'
 import Grid from './Grid'
 import GamePiece from './GamePiece'
 import HoverIndicator from './HoverIndicator'
-
-interface Position {
-  x: number
-  y: number
-  z: number
-}
+import { Position } from '../types'
 
 interface GameProps {
   currentPlayer: 'black' | 'white'
@@ -27,13 +22,19 @@ interface GameProps {
 
 interface AIResponse {
   move: Position;
+  source: 'alphazero';
   error?: string;
+}
+
+interface GamePiece {
+  position: Position;
+  color: 'black' | 'white';
 }
 
 const GRID_SIZE = 4
 const CELL_SIZE = 1.5
 const TOTAL_CELLS = GRID_SIZE * GRID_SIZE * GRID_SIZE
-const API_URL = 'http://localhost:3001/api'
+const API_URL = 'http://localhost:3002/api'  // Updated to port 3002 for the Python Flask backend
 
 const Game: React.FC<GameProps> = ({ 
   currentPlayer, 
@@ -49,10 +50,22 @@ const Game: React.FC<GameProps> = ({
   setIsAIThinking,
   onAIError
 }) => {
-  const [pieces, setPieces] = useState<{ position: Position; color: 'black' | 'white' }[]>([])
+  const [pieces, setPieces] = useState<GamePiece[]>([])
   const [hoverPosition, setHoverPosition] = useState<Position | null>(null)
   const [retryCount, setRetryCount] = useState(0)
   const maxRetries = 3
+  const [lastRequestTime, setLastRequestTime] = useState<number | null>(null)
+  const [networkStats, setNetworkStats] = useState<{
+    requestCount: number;
+    successCount: number;
+    failureCount: number;
+    avgResponseTime: number;
+  }>({
+    requestCount: 0,
+    successCount: 0,
+    failureCount: 0,
+    avgResponseTime: 0
+  });
 
   // Debug logging for state changes
   useEffect(() => {
@@ -62,9 +75,10 @@ const Game: React.FC<GameProps> = ({
       isAIThinking,
       piecesCount: pieces.length,
       winner,
-      isDraw
+      isDraw,
+      networkStats
     });
-  }, [currentPlayer, gameMode, isAIThinking, pieces, winner, isDraw]);
+  }, [currentPlayer, gameMode, isAIThinking, pieces, winner, isDraw, networkStats]);
 
   // Reset board only when resetKey changes (new game) or game mode changes
   useEffect(() => {
@@ -72,7 +86,7 @@ const Game: React.FC<GameProps> = ({
     setPieces([]);
     setRetryCount(0);
     onAIError?.(null);
-  }, [resetKey, gameMode, onAIError]); // Removed winner and isDraw from dependencies
+  }, [resetKey, gameMode, onAIError]);
 
   // Check for draw after each move
   useEffect(() => {
@@ -82,139 +96,13 @@ const Game: React.FC<GameProps> = ({
     }
   }, [pieces, winner, isDraw, onDraw]);
 
-  // AI player logic with detailed logging
-  useEffect(() => {
-    let isMounted = true;
-
-    const makeAIMove = async () => {
-      if (gameMode === 'ai' && currentPlayer === 'white' && !winner && !isDraw && !isAIThinking) {
-        console.log('AI move started:', {
-          gameMode,
-          currentPlayer,
-          isAIThinking,
-          piecesState: pieces
-        });
-
-        setIsAIThinking?.(true);
-        onAIError?.(null);
-        
-        try {
-          console.log('Sending request to AI server...');
-          const response = await Promise.race([
-            fetch(`${API_URL}/ai-move`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ pieces }),
-            }),
-            new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Request timeout')), 5000)
-            )
-          ]) as Response;
-          
-          console.log('AI server response status:', response.status);
-          
-          if (!isMounted) return;
-          
-          if (!response.ok) {
-            const errorData = await response.json();
-            console.error('AI server error response:', errorData);
-            throw new Error(errorData.error || 'Failed to get AI move');
-          }
-          
-          const data = await response.json() as AIResponse;
-          console.log('AI move received:', data);
-          
-          if (data.move) {
-            if (!isMounted) return;
-
-            const newPosition = {
-              x: Math.round(data.move.x),
-              y: Math.round(data.move.y),
-              z: Math.round(data.move.z)
-            };
-
-            // Validate the move
-            if (!isValidPosition(newPosition) || pieces.some(p => 
-              p.position.x === newPosition.x && 
-              p.position.y === newPosition.y && 
-              p.position.z === newPosition.z
-            )) {
-              throw new Error('Invalid move received from AI');
-            }
-
-            // Apply the move
-            const newPieces = [...pieces, { position: newPosition, color: 'white' }];
-            setPieces(newPieces);
-            onPiecePlace?.();
-
-            if (checkWin(newPieces)) {
-              onWin('white');
-            } else if (newPieces.length === TOTAL_CELLS) {
-              onDraw();
-            } else {
-              onPlayerChange();
-            }
-
-            setIsAIThinking?.(false);
-            setRetryCount(0);
-          } else {
-            throw new Error('Invalid AI move received');
-          }
-        } catch (error) {
-          if (!isMounted) return;
-
-          console.error('AI move error details:', {
-            error,
-            errorMessage: error instanceof Error ? error.message : 'Unknown error',
-            errorStack: error instanceof Error ? error.stack : undefined,
-            currentGameState: {
-              pieces,
-              currentPlayer,
-              gameMode,
-              isAIThinking
-            }
-          });
-          
-          // Handle connection errors with retry logic
-          if (retryCount < maxRetries && 
-              ((error instanceof TypeError) || 
-               (error instanceof Error && error.message === 'Request timeout'))) {
-            setRetryCount(prev => prev + 1);
-            onAIError?.(`Connection error. Retrying... (${retryCount + 1}/${maxRetries})`);
-            // Retry after a delay
-            setTimeout(() => {
-              if (isMounted) {
-                setIsAIThinking?.(false);
-              }
-            }, 1000);
-          } else {
-            onAIError?.(
-              retryCount >= maxRetries
-                ? "Could not connect to AI server. Please check your connection and try again."
-                : error instanceof Error ? error.message : 'Unknown error'
-            );
-            setIsAIThinking?.(false);
-          }
-        }
-      }
-    };
-    
-    makeAIMove();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [currentPlayer, gameMode, winner, isDraw, pieces, isAIThinking, retryCount, setIsAIThinking, onAIError, onWin, onDraw, onPlayerChange, onPiecePlace]);
-
   const isValidPosition = (pos: Position): boolean => {
     return pos.x >= 0 && pos.x < GRID_SIZE &&
            pos.y >= 0 && pos.y < GRID_SIZE &&
            pos.z >= 0 && pos.z < GRID_SIZE;
   }
 
-  const checkWin = (newPieces: typeof pieces): boolean => {
+  const checkWin = (newPieces: GamePiece[]): boolean => {
     const lastPiece = newPieces[newPieces.length - 1]
     if (!lastPiece) return false
 
@@ -331,85 +219,158 @@ const Game: React.FC<GameProps> = ({
     return true;
   }
 
-  // Effect to handle AI moves
+  // AI player logic
   useEffect(() => {
-    let isEffectActive = true;
+    let isMounted = true;
 
     const makeAIMove = async () => {
-      // Only proceed if it's AI's turn and the game is still ongoing
-      if (gameMode !== 'ai' || currentPlayer !== 'white' || winner || isDraw || isAIThinking) {
-        console.log('Skipping AI move:', {
+      if (gameMode === 'ai' && currentPlayer === 'white' && !winner && !isDraw && !isAIThinking) {
+        console.log('AI move started:', {
           gameMode,
           currentPlayer,
-          winner,
-          isDraw,
-          isAIThinking
+          isAIThinking,
+          piecesState: pieces,
+          timestamp: new Date().toISOString()
         });
-        return;
-      }
 
-      console.log('Starting AI move process:', {
-        currentPieces: pieces.length,
-        isAIThinking
-      });
-
-      try {
         setIsAIThinking?.(true);
         onAIError?.(null);
+        setLastRequestTime(Date.now());
 
-        // Make the API request
-        const response = await fetch(`${API_URL}/ai-move`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pieces })
-        });
+        try {
+          console.log('Sending request to AI server...', {
+            endpoint: `${API_URL}/ai-move`,
+            pieceCount: pieces.length,
+            timestamp: new Date().toISOString()
+          });
 
-        if (!isEffectActive) {
-          console.log('Effect no longer active, aborting AI move');
-          return;
-        }
+          const startTime = Date.now();
+          const response = await Promise.race([
+            fetch(`${API_URL}/ai-move`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ 
+                pieces,
+                requestId: Date.now(), // Add request ID for tracking
+              }),
+            }),
+            new Promise<never>((_, reject) => 
+              setTimeout(() => reject(new Error('Request timeout')), 30000) // Increased timeout to 30s
+            )
+          ]);
+          
+          const endTime = Date.now();
+          const responseTime = endTime - startTime;
+          
+          console.log('AI server response received:', {
+            status: response.status,
+            responseTime: `${responseTime}ms`,
+            timestamp: new Date().toISOString()
+          });
 
-        if (!response.ok) {
-          throw new Error('Failed to get AI move');
-        }
+          setNetworkStats(prev => ({
+            requestCount: prev.requestCount + 1,
+            successCount: prev.successCount + (response.ok ? 1 : 0),
+            failureCount: prev.failureCount + (response.ok ? 0 : 1),
+            avgResponseTime: (prev.avgResponseTime * prev.requestCount + responseTime) / (prev.requestCount + 1)
+          }));
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error('AI server error response:', {
+              status: response.status,
+              error: errorData,
+              timestamp: new Date().toISOString()
+            });
+            throw new Error(errorData.error || 'Failed to get AI move');
+          }
+          
+          const data = await response.json() as AIResponse;
+          console.log('AI move processed:', {
+            move: data.move,
+            responseTime: `${responseTime}ms`,
+            timestamp: new Date().toISOString()
+          });
+          
+          if (data.move) {
+            const newPosition = {
+              x: Math.round(data.move.x),
+              y: Math.round(data.move.y),
+              z: Math.round(data.move.z)
+            };
 
-        const data = await response.json() as AIResponse;
-        console.log('Received AI move:', data);
+            // Validate the move
+            if (!isValidPosition(newPosition) || pieces.some(p => 
+              p.position.x === newPosition.x && 
+              p.position.y === newPosition.y && 
+              p.position.z === newPosition.z
+            )) {
+              throw new Error('Invalid move received from AI');
+            }
 
-        if (!data.move || !isValidPosition(data.move)) {
-          throw new Error('Invalid move received from AI');
-        }
+            console.log('Applying AI move:', {
+              position: newPosition,
+              existingPieces: pieces.length,
+              timestamp: new Date().toISOString()
+            });
 
-        // Place the AI's piece
-        const moveSuccess = handlePlacePiece(data.move, 'white');
-        console.log('AI move placement result:', {
-          success: moveSuccess,
-          position: data.move
-        });
+            // Apply the move
+            const moveSuccess = handlePlacePiece(newPosition, 'white');
+            
+            if (moveSuccess && !winner && !isDraw) {
+              onPlayerChange();
+            }
+            
+            setIsAIThinking?.(false);
+            setRetryCount(0);
+          } else {
+            throw new Error('Invalid AI move received');
+          }
+        } catch (error) {
+          console.error('AI move error:', {
+            error: error instanceof Error ? {
+              message: error.message,
+              stack: error.stack
+            } : error,
+            retryCount,
+            maxRetries,
+            lastRequestTime: lastRequestTime ? new Date(lastRequestTime).toISOString() : null,
+            timeSinceLastRequest: lastRequestTime ? Date.now() - lastRequestTime : null,
+            timestamp: new Date().toISOString()
+          });
 
-        if (moveSuccess && !winner && !isDraw) {
-          onPlayerChange();
-        }
-
-      } catch (error) {
-        console.error('AI move error:', error);
-        onAIError?.(error instanceof Error ? error.message : 'Unknown error');
-      } finally {
-        if (isEffectActive) {
-          console.log('Clearing AI thinking state');
-          setIsAIThinking?.(false);
+          // Handle connection errors with retry logic
+          if (retryCount < maxRetries && 
+              ((error instanceof TypeError) || 
+               (error instanceof Error && error.message.includes('timeout')))) {
+            setRetryCount(prev => prev + 1);
+            onAIError?.(`Connection error. Retrying... (${retryCount + 1}/${maxRetries})`);
+            // Retry after a delay
+            setTimeout(() => {
+              if (isMounted) {
+                setIsAIThinking?.(false);
+              }
+            }, 1000);
+          } else {
+            onAIError?.(
+              retryCount >= maxRetries
+                ? "Could not connect to AI server. Please check your connection and try again."
+                : error instanceof Error ? error.message : 'Unknown error'
+            );
+            setIsAIThinking?.(false);
+          }
         }
       }
     };
-
-    // Start the AI move process
+    
     makeAIMove();
 
-    // Cleanup function
     return () => {
-      isEffectActive = false;
+      isMounted = false;
     };
-  }, [currentPlayer, gameMode, winner, isDraw, pieces]); // Remove isAIThinking from dependencies
+  }, [currentPlayer, gameMode, winner, isDraw, pieces, isAIThinking, retryCount, setIsAIThinking, onAIError, onWin, onDraw, onPlayerChange, onPiecePlace]);
 
   return (
     <>
