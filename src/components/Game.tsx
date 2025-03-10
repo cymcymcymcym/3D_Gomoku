@@ -27,8 +27,11 @@ interface AIResponse {
 }
 
 interface GamePiece {
-  position: Position;
-  color: 'black' | 'white';
+  position: Position
+  color: 'black' | 'white'
+  id: number // Add unique ID to track pieces
+  isAIMove: boolean // Track if this was placed by AI
+  isWinningPiece?: boolean // Track if this piece is part of the winning line
 }
 
 const GRID_SIZE = 4
@@ -66,6 +69,8 @@ const Game: React.FC<GameProps> = ({
     failureCount: 0,
     avgResponseTime: 0
   });
+  const [latestPieceId, setLatestPieceId] = useState<number | null>(null)
+  const [winningPieceIds, setWinningPieceIds] = useState<number[]>([])
 
   // Debug logging for state changes
   useEffect(() => {
@@ -84,6 +89,7 @@ const Game: React.FC<GameProps> = ({
   useEffect(() => {
     console.log('Board reset triggered:', { resetKey });
     setPieces([]);
+    setLatestPieceId(null)
     setRetryCount(0);
     onAIError?.(null);
   }, [resetKey, gameMode, onAIError]);
@@ -102,10 +108,10 @@ const Game: React.FC<GameProps> = ({
            pos.z >= 0 && pos.z < GRID_SIZE;
   }
 
-  const checkWin = (newPieces: GamePiece[]): boolean => {
+  const checkWin = (newPieces: GamePiece[]): { won: boolean, winningPieces: GamePiece[] } => {
     const lastPiece = newPieces[newPieces.length - 1]
-    if (!lastPiece) return false
-
+    if (!lastPiece) return { won: false, winningPieces: [] }
+    
     // All possible directions to check (26 directions in 3D space)
     const directions = [
       [1, 0, 0], [-1, 0, 0],  // x axis
@@ -122,6 +128,7 @@ const Game: React.FC<GameProps> = ({
 
     for (const [dx, dy, dz] of directions) {
       let count = 1
+      let connectedPieces = [lastPiece] // Start with the last placed piece
       let pos = { ...lastPiece.position }
 
       // Check in both directions
@@ -145,6 +152,7 @@ const Game: React.FC<GameProps> = ({
 
           if (piece) {
             count++
+            connectedPieces.push(piece)
             pos = nextPos
           } else {
             break
@@ -153,13 +161,13 @@ const Game: React.FC<GameProps> = ({
       }
 
       if (count >= 4) {
-        return true
+        return { won: true, winningPieces: connectedPieces }
       }
     }
-    return false
+    return { won: false, winningPieces: [] }
   }
 
-  const handlePlacePiece = (position: Position, color: 'black' | 'white' = currentPlayer) => {
+  const handlePlacePiece = (position: Position, color: 'black' | 'white' = currentPlayer, isAIMove = false): boolean => {
     console.log('Handling piece placement:', {
       position,
       color,
@@ -192,21 +200,46 @@ const Game: React.FC<GameProps> = ({
       return false;
     }
 
+    // Generate a unique ID for the new piece
+    const newPieceId = Date.now()
+    
     // Create new piece and update state
-    const newPieces = [...pieces, { position: roundedPosition, color }];
+    const newPiece = { 
+      position: roundedPosition, 
+      color, 
+      id: newPieceId,
+      isAIMove
+    }
+    
+    const newPieces = [...pieces, newPiece]
     console.log('Setting new pieces:', {
-      newPiece: { position: roundedPosition, color },
+      newPiece,
       totalPieces: newPieces.length
-    });
+    })
     
-    setPieces(newPieces);
-    onPiecePlace?.();
+    setPieces(newPieces)
+    setLatestPieceId(newPieceId)
+    onPiecePlace?.()
     
-    // Check win condition
-    if (checkWin(newPieces)) {
-      console.log('Win detected for player:', color);
-      onWin(color);
-      return true;
+    // Check win condition with improved function that returns winning pieces
+    const { won, winningPieces } = checkWin(newPieces)
+    
+    if (won) {
+      console.log('Win detected for player:', color, 'with winning pieces:', winningPieces);
+      
+      // Mark winning pieces
+      const winningIds = winningPieces.map(p => p.id)
+      setWinningPieceIds(winningIds)
+      
+      // Update pieces to mark winning pieces
+      const updatedPieces = newPieces.map(piece => ({
+        ...piece,
+        isWinningPiece: winningIds.includes(piece.id)
+      }))
+      
+      setPieces(updatedPieces)
+      onWin(color)
+      return true
     } 
     
     // Check draw condition
@@ -317,7 +350,7 @@ const Game: React.FC<GameProps> = ({
             });
 
             // Apply the move
-            const moveSuccess = handlePlacePiece(newPosition, 'white');
+            const moveSuccess = handlePlacePiece(newPosition, 'white', true)
             
             if (moveSuccess && !winner && !isDraw) {
               onPlayerChange();
@@ -372,6 +405,11 @@ const Game: React.FC<GameProps> = ({
     };
   }, [currentPlayer, gameMode, winner, isDraw, pieces, isAIThinking, retryCount, setIsAIThinking, onAIError, onWin, onDraw, onPlayerChange, onPiecePlace]);
 
+  // Reset winning pieces when starting a new game
+  useEffect(() => {
+    setWinningPieceIds([])
+  }, [resetKey])
+
   return (
     <>
       <Grid 
@@ -410,15 +448,18 @@ const Game: React.FC<GameProps> = ({
         />
       )}
       
-      {pieces.map((piece, index) => (
+      {pieces.map((piece) => (
         <GamePiece
-          key={index}
+          key={piece.id}
           position={new Vector3(
             (piece.position.x - (GRID_SIZE - 1) / 2) * CELL_SIZE,
             (piece.position.y - (GRID_SIZE - 1) / 2) * CELL_SIZE,
             (piece.position.z - (GRID_SIZE - 1) / 2) * CELL_SIZE
           )}
           color={piece.color}
+          isLatest={piece.id === latestPieceId}
+          isAIMove={piece.isAIMove}
+          isWinningPiece={piece.isWinningPiece || winningPieceIds.includes(piece.id)}
         />
       ))}
     </>
