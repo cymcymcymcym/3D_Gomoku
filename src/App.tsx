@@ -1,17 +1,16 @@
-import { Canvas, ThreeElements } from '@react-three/fiber'
+import { Canvas, extend } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import { useState } from 'react'
 import * as THREE from 'three'
 import './App.css'
 import Game from './components/Game'
 
-declare module '@react-three/fiber' {
-  interface ThreeElements {
-    color: { attach: string; args: [THREE.ColorRepresentation] };
-    ambientLight: { intensity?: number };
-    directionalLight: { position?: [number, number, number]; intensity?: number };
-  }
-}
+// Extend JSX with r3f elements
+extend({ 
+  Color: THREE.Color,
+  DirectionalLight: THREE.DirectionalLight,
+  AmbientLight: THREE.AmbientLight
+})
 
 function App() {
   const [currentPlayer, setCurrentPlayer] = useState<'black' | 'white'>('black')

@@ -8,19 +8,14 @@ class Board3D(object):
         self.width = int(kwargs.get('width', 4))
         self.height = int(kwargs.get('height', 4))
         self.depth = int(kwargs.get('depth', 4))
-        # board states stored as a dict,
-        # key: move as location on the board,
-        # value: player as pieces type
         self.states = {}
-        # need how many pieces in a row to win
         self.n_in_row = int(kwargs.get('n_in_row', 4))
-        self.players = [1, 2]  # player1 and player2
+        self.players = [1, 2] 
 
     def init_board(self, start_player=0):
         if min(self.width, self.height, self.depth) < self.n_in_row:
             raise Exception('board dimensions cannot be less than {}'.format(self.n_in_row))
         self.current_player = self.players[start_player]
-        # keep available moves in a list
         self.availables = list(range(self.width * self.height * self.depth))
         self.states = {}
         self.last_move = -1
