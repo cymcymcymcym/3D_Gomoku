@@ -37,7 +37,7 @@ interface GamePiece {
 const GRID_SIZE = 4
 const CELL_SIZE = 1.5
 const TOTAL_CELLS = GRID_SIZE * GRID_SIZE * GRID_SIZE
-const API_URL = 'http://localhost:3002/api'  // Updated to port 3002 for the Python Flask backend
+const API_URL = `/api`
 
 const Game: React.FC<GameProps> = ({ 
   currentPlayer, 

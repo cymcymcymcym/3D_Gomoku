@@ -1,4 +1,4 @@
-version: '3.8'
+version: '3'
 
 services:
   # Backend Flask API with TensorFlow
@@ -13,8 +13,10 @@ services:
       - ./alphazero:/app/alphazero
     restart: unless-stopped
     environment:
-      - TF_CPP_MIN_LOG_LEVEL=3
+      - TF_FORCE_GPU_ALLOW_GROWTH=true
       - CUDA_VISIBLE_DEVICES=-1
+    networks:
+      - app-network
 
   # Frontend React application
   frontend:
@@ -28,4 +30,10 @@ services:
       - backend
     restart: unless-stopped
     volumes:
-      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf 
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge 

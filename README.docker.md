@@ -49,6 +49,8 @@ docker compose up
 
 - **Frontend build issues**: If you're having trouble building the frontend with Docker, build it locally first with `npm run build` and then use the simplified frontend Dockerfile.
 
+- **Frontend can't connect to backend**: The application has been updated to use Nginx for proxying API requests. All API calls now go through the same domain/port as the frontend (port 80), which eliminates cross-origin issues.
+
 ## Notes
 
 - The AI model weights are included in the backend container
