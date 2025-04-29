@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  # Backend Flask API with TensorFlow
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    image: 3d-gomoku-backend
+    ports:
+      - "3002:3002"
+    volumes:
+      - ./alphazero:/app/alphazero
+    restart: unless-stopped
+    environment:
+      - TF_CPP_MIN_LOG_LEVEL=3
+      - CUDA_VISIBLE_DEVICES=-1
+
+  # Frontend React application
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    image: 3d-gomoku-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf 
